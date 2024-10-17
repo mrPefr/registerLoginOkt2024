@@ -2,6 +2,7 @@ const exp = require('constants');
 const express = require('express');
 const app = express();
 const port = 3000;
+// variabel som hanterar filsystemet
 const fs = require("fs");
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))
 
