@@ -1,5 +1,6 @@
 const exp = require('constants');
 const express = require('express');
+const bcrypt = require("bcryptjs");
 const app = express();
 const port = 3000;
 // variabel som hanterar filsystemet
@@ -13,7 +14,18 @@ app.use(express.static("public"))
 app.use(express.urlencoded({extended:true}))
 
 
-app.get('/', (req, res) => res.send(render('Hello World!')))
+app.get('/', (req, res) => {
+
+
+res.send(req.headers);
+
+})
+app.get('/kalle', (req, res) => {
+
+
+    res.send(req.headers);
+    
+    })
 
 // Route för att gå till ett registreringsformulär
 app.get("/register", showRegister);
@@ -24,10 +36,39 @@ app.get("/login", showLogin);
 // Route för att HANTERA registrering
 app.post("/register", register);
 
+// Route för att hantera inloggning
+app.post("/login", login);
 
-function register(req, res){
+async function login(req, res){
 
     let data = req.body;
+
+    let user = JSON.parse(fs.readFileSync("user.json").toString());
+
+    let check = await bcrypt.compare(data.password, user.password);
+
+    if(!check) return res.redirect("/login?wrong_credentials");
+
+    res.send(render("INLOGGAD SOM "+user.email));
+
+
+}
+
+
+
+async function register(req, res){
+
+    // Hämta data som skickats med metod POST
+    let data = req.body;
+
+    // Hasha lösenord
+    data.password = await bcrypt.hash(data.password,12);
+
+    let user = JSON.parse(fs.readFileSync("user.json").toString());
+    if(user.email) return res.send(render("FORBIDDEN"));
+
+    fs.writeFileSync("user.json", JSON.stringify(data, null, 3));
+
     res.send(render(JSON.stringify(data)))
 
 }
