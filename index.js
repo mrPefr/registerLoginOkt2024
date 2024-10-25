@@ -1,6 +1,8 @@
 const exp = require('constants');
 const express = require('express');
 const bcrypt = require("bcryptjs");
+const session = require('express-session');
+
 const app = express();
 const port = 3000;
 // variabel som hanterar filsystemet
@@ -8,24 +10,36 @@ const fs = require("fs");
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))
 
 
+
+
 // FIXA så att vi har tillgång till bl a CSS
 app.use(express.static("public"))
 // FIXA EN BODY till POST
 app.use(express.urlencoded({extended:true}))
 
+// initera en session
+app.use(session({
+    secret: 'keyboard cat',
+    resave: false,
+    saveUninitialized: true,
+    cookie: { }
+  }))
+
 
 app.get('/', (req, res) => {
 
 
-res.send(req.headers);
+res.send(render("HOME"));
 
 })
-app.get('/kalle', (req, res) => {
+app.get('/session', (req, res) => {
 
 
-    res.send(req.headers);
-    
-    })
+   if(req.session.email) return res.send(render( "välkommern "+req.session.email));
+
+   res.redirect("/login");
+
+})
 
 // Route för att gå till ett registreringsformulär
 app.get("/register", showRegister);
@@ -43,13 +57,18 @@ async function login(req, res){
 
     let data = req.body;
 
-    let user = JSON.parse(fs.readFileSync("user.json").toString());
+    let users = JSON.parse(fs.readFileSync("user.json").toString());
 
-    let check = await bcrypt.compare(data.password, user.password);
+    let userExist = users.find(u=>u.email==data.email);
+    if(!userExist) return res.send(render("No such USEr"));
+
+    let check = await bcrypt.compare(data.password, userExist.password);
 
     if(!check) return res.redirect("/login?wrong_credentials");
 
-    res.send(render("INLOGGAD SOM "+user.email));
+    req.session.email = userExist.email;
+    req.session.loggedIn = true;
+    res.send(render("INLOGGAD SOM "+userExist.email));
 
 
 }
@@ -64,10 +83,16 @@ async function register(req, res){
     // Hasha lösenord
     data.password = await bcrypt.hash(data.password,12);
 
-    let user = JSON.parse(fs.readFileSync("user.json").toString());
-    if(user.email) return res.send(render("FORBIDDEN"));
+    let users = JSON.parse(fs.readFileSync("user.json").toString());
 
-    fs.writeFileSync("user.json", JSON.stringify(data, null, 3));
+    let userExist = users.find(u=>u.email == data.email);
+    if(userExist) return res.send(render("User exists"));
+
+
+    // Här vet vi att det är en ny user....
+
+    users.push(data);
+    fs.writeFileSync("user.json", JSON.stringify(users, null, 3));
 
     res.send(render(JSON.stringify(data)))
 
